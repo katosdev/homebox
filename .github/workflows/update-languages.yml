@@ -2,6 +2,7 @@ name: Update Languages
 
 on:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   update-languages:
@@ -14,17 +15,19 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get install -y jq curl
 
-      - name: Fetch and debug Weblate response
+      - name: Fetch languages from Weblate API
+        env:
+          WEBLATE_API_TOKEN: ${{ secrets.WEBLATE_API_TOKEN }} # Add your API token as a GitHub secret
         run: |
-          # Fetch the Weblate response and save it for debugging
-          curl -s https://translate.sysadminsmedia.com/languages/ > weblate_response.json
+          # Fetch the language list from the Weblate API
+          curl -s -H "Authorization: Token ${WEBLATE_API_TOKEN}" https://translate.sysadminsmedia.com/api/languages/ > weblate_response.json
           cat weblate_response.json
 
-      - name: Parse languages from Weblate
+      - name: Parse languages from Weblate API
         id: fetch_languages
         run: |
-          # Parse and format the Weblate response into valid JSON
-          LANGUAGES_JSON=$(cat weblate_response.json | jq -r '[.[] | {(.code): .name}] | add')
+          # Extract 'name' and 'code' from Weblate API response and convert to JSON object
+          LANGUAGES_JSON=$(jq -r '[.results[] | {(.code): .name}] | add' weblate_response.json)
           echo "LANGUAGES_JSON=${LANGUAGES_JSON}" >> $GITHUB_ENV
 
       - name: Check for changes in languages
@@ -56,16 +59,35 @@ jobs:
           # Move the temporary file back to en.json
           mv frontend/locales/en.json.tmp frontend/locales/en.json
 
-      - name: Commit and push changes
+      - name: Commit and push changes to new branch
         if: env.no_changes == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Configure Git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          # Delete existing branch if it exists
+          git branch -D bot/update-languages || true
+          git push origin --delete bot/update-languages || true
+
+          # Create a new branch
+          git checkout -b bot/update-languages
+
+          # Commit changes
           git add frontend/locales/en.json
           git commit -m "Update languages in en.json"
-          git push
 
-      - name: Output no changes detected
-        if: env.no_changes == 'true'
-        run: echo "No new languages detected"
+          # Push the new branch
+          git push --set-upstream origin bot/update-languages
+
+      - name: Create pull request
+        if: env.no_changes == 'false'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: bot/update-languages
+          title: "Update languages in en.json"
+          body: |
+            This pull request updates the languages in `frontend/locales/en.json` based on the latest data from Weblate.
