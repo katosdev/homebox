@@ -14,11 +14,17 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get install -y jq curl
 
-      - name: Fetch languages from Weblate
+      - name: Fetch and debug Weblate response
+        run: |
+          # Fetch the Weblate response and save it for debugging
+          curl -s https://translate.sysadminsmedia.com/languages/ > weblate_response.json
+          cat weblate_response.json
+
+      - name: Parse languages from Weblate
         id: fetch_languages
         run: |
-          # Fetch the language list from the Weblate instance
-          LANGUAGES_JSON=$(curl -s https://translate.sysadminsmedia.com/languages/ | jq -r '[.[] | {(.code): .name}] | add')
+          # Parse and format the Weblate response into valid JSON
+          LANGUAGES_JSON=$(cat weblate_response.json | jq -r '[.[] | {(.code): .name}] | add')
           echo "LANGUAGES_JSON=${LANGUAGES_JSON}" >> $GITHUB_ENV
 
       - name: Check for changes in languages
