@@ -17,7 +17,7 @@ jobs:
 
       - name: Fetch languages from Weblate API
         env:
-          WEBLATE_API_TOKEN: ${{ secrets.WEBLATE_API_TOKEN }} # Add your API token as a GitHub secret
+          WEBLATE_API_TOKEN: ${{ secrets.WEBLATE_API_TOKEN }} # Ensure secret is added
         run: |
           # Fetch the language list from the Weblate API
           curl -s -H "Authorization: Token ${WEBLATE_API_TOKEN}" https://translate.sysadminsmedia.com/api/languages/ > weblate_response.json
