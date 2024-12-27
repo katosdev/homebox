@@ -2,8 +2,6 @@ name: Update Languages
 
 on:
   pull_request:
-    paths:
-      - 'frontend/locales/en.json'
 
 jobs:
   update-languages:
